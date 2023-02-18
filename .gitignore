@@ -1,3 +1,4 @@
 .idea
 subreddits.sqlite3
 images/*
+images_processed/*

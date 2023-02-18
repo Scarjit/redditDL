@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -107,28 +108,48 @@ func DownloadImage(url string, id string) {
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Printf("Error downloading image: %s", err)
+		return
 	}
 	defer resp.Body.Close()
 
 	// Create file
 	var file *os.File
-	file, err = os.Create(fmt.Sprintf("./images/%s.jpg", id))
+	file, err = os.Create(fmt.Sprintf("./images/%s.tmp", id))
 	if err != nil {
 		fmt.Printf("Error creating file: %s", err)
+		return
 	}
 	defer file.Close()
 
 	// Read response body
-	var bytes []byte
-	bytes, err = io.ReadAll(resp.Body)
+	var b []byte
+	b, err = io.ReadAll(resp.Body)
 	if err != nil {
+		fmt.Printf("Error reading response body: %s", err)
 		return
 	}
-	// Write to file
-	_, err = file.Write(bytes)
+
+	// Save image to file
+	_, err = file.Write(b)
+	file.Close()
+
+	// Run cwebp on image
+	cmd := exec.Command("cwebp", "-q", "80", "-o", fmt.Sprintf("./images/%s.webp", id), fmt.Sprintf("./images/%s.tmp", id))
+	var stdout []byte
+	stdout, err = cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("Error writing to file: %s", err)
+		fmt.Printf("Error running cwebp: %s", err)
+		fmt.Println(string(stdout))
+		return
 	}
+
+	// Remove tmp file
+	err = os.Remove(fmt.Sprintf("./images/%s.tmp", id))
+	if err != nil {
+		fmt.Printf("Error removing tmp file: %s", err)
+		return
+	}
+
 	fmt.Printf("Downloaded image: %s\n", id)
 }
 
